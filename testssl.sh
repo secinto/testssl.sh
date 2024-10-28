@@ -7637,7 +7637,7 @@ determine_trust() {
      [[ -n $json_postfix ]] && spaces="                                "
 
      case $OSSL_VER_MAJOR.$OSSL_VER_MINOR in
-          1.0.2|1.1.0|1.1.1|2.[1-9].*|3.*)           # 2.x is LibreSSL. 2.1.1 was tested to work, below is not sure
+          1.0.2|1.1.0|1.1.1|2.[1-9].*|3.*|4.*)           # 2.x is LibreSSL. 2.1.1 was tested to work, below is not sure
                :
           ;;
           *)   addtl_warning="Your $OPENSSL <= 1.0.2 might be too unreliable to determine trust"
