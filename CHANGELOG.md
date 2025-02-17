@@ -12,6 +12,7 @@
 * Improved compatibility with Open/LibreSSL versions not supporting TLS 1.0-1.1 anymore
 * Renamed PFS/perfect forward secrecy --> FS/forward secrecy
 * Cipher list straightening
+* Support RFC 9150 cipher suites
 * Improved mass testing
 * Better align colors of ciphers with standard cipherlists
 * Save a few cycles for ROBOT
@@ -21,15 +22,20 @@
 * BREACH check: list all compression methods and add brotli
 * Test for old winshock vulnerability
 * Test for STARTTLS injection vulnerabilities (SMTP, POP3, IMAP)
-* STARTTLS: XMPP server support, plus new set of OpenSSL-bad binaries
+* STARTTLS: XMPP server support, plus a new set of OpenSSL-bad binaries
+* STARTTLS sieve support, plus again a new set of OpenSSL-bad binaries
 * Several code improvements to STARTTLS, also better detection when no STARTTLS is offered
+* Detect throtteling via STARTTLS smtp
+* Renegotiation checks more reliable against different servers
 * STARTTLS on active directory service support
 * Security fixes: DNS and other input from servers
 * Don't penalize missing trust in rating when CA not in Java store
 * Added support for certificates with EdDSA signatures and public keys
 * Extract CA list shows supported certification authorities sent by the server
+* Wildcard certificates: detection and warning
 * TLS 1.2 and TLS 1.3 sig algs added
 * Check for ffdhe groups
+* Check for three KEMs in draft-kwiatkowski-tls-ecdhe-mlkem/draft-tls-westerbaan-xyber768d00
 * Show server supported signature algorithms
 * --add-ca can also now be a directory with \*.pem files
 * Warning of 398 day limit for certificates issued after 2020/9/1
@@ -37,12 +43,13 @@
 * Added --user-agent argument to support using a custom User Agent
 * Added --overwrite argument to support overwriting output files without warning
 * Headerflag X-XSS-Protection is now labeled as INFO
+* Search for more HTTP security headers on the server
 * Strict parser for HSTS
 * DNS via proxy improvements
 * Client simulation runs in wide mode which is even better readable
 * Added --reqheader to support custom headers in HTTP requests
 * Test for support for RFC 8879 certificate compression
-* Deprecating --fast and --ssl-native (warning but still av)
+* Deprecating --fast and --ssl-native (warning only but still av)
 * Compatible to GNU grep 3.8
 * Don't use external pwd command anymore
 * Doesn't hang anymore when there's no local resolver
@@ -102,7 +109,7 @@
 * Renegotiation checks improved, also no false positive for Node.js anymore
 * Major update of client simulations with self-collected up-to-date data
 * Update of CA certificate stores
-* Lots of bug fixes
+* Lots of bug and security fixes
 * More travis/CI checks -- still place for improvements
 * Man page reviewed
 
@@ -137,7 +144,7 @@
 * Trust chain check against certificate stores from Apple (OS), Linux (OS),
   Microsoft (OS), Mozilla (Firefox Browser), works for openssl >=1.0.1
 * IPv6 (status: 80% working, details see
-  https://github.com/drwetter/testssl.sh/issues/11
+  https://github.com/testssl/testssl.sh/issues/11
 * works now on servers requiring a x509 certificate for authentication
 * extensive CN <--> hostname check
 * SSL Session ID check
@@ -183,7 +190,7 @@
   * quite some LibreSSL fixes, still not recommended to use though (see https://testssl.sh/)
   * lots of fixes, code improvements, even more robust
 
-Full log @ https://github.com/drwetter/testssl.sh/commits/2.6/testssl.sh
+Full log @ https://github.com/testssl/testssl.sh/commits/2.6/testssl.sh
 
 ### New in 2.4
   * "only one cmd line option at a time" is completely gone
@@ -198,7 +205,7 @@ Full log @ https://github.com/drwetter/testssl.sh/commits/2.6/testssl.sh
   * lots of cosmetic and maintainability code cleanups
   * bugfixing
 
-Full changelog: https://github.com/drwetter/testssl.sh/commits/2.4/testssl.sh
+Full changelog: https://github.com/testssl/testssl.sh/commits/2.4/testssl.sh
 
 ### 2.2. new features:
   * Works fully under FreeBSD (openssl >=1.0)
@@ -214,7 +221,7 @@ Full changelog: https://github.com/drwetter/testssl.sh/commits/2.4/testssl.sh
   * RFC <---> OpenSSL name space mapping of ciphers everywhere
   * includes a lot of fixes
 
-Full changelog @  https://github.com/drwetter/testssl.sh/commits/2.2/testssl.sh
+Full changelog @  https://github.com/testssl/testssl.sh/commits/2.2/testssl.sh
 
 ### 2.0 major release, new features:
   * SNI
