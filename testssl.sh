@@ -122,7 +122,7 @@ trap "child_error" USR1
 
 ########### Internal definitions
 #
-declare -r VERSION="3.2.1"
+declare -r VERSION="3.2.2"
 declare -r SWCONTACT="dirk aet testssl dot sh"
 [[ "$VERSION" =~ dev|rc|beta ]] && \
      SWURL="https://testssl.sh/dev/" ||
@@ -469,11 +469,15 @@ HAS_GNUDATE=false
 HAS_FREEBSDDATE=false
 HAS_OPENBSDDATE=false
 if date -d @735275209 >/dev/null 2>&1; then
-     if date -r @735275209  >/dev/null 2>&1; then
+     if date -r @735275209 >/dev/null 2>&1; then
+          # Ubuntu >= 25.10
+          HAS_GNUDATE=true
+     elif date -r 735275209 2>&1 | grep -q "No such file"; then
+          # e.g. Debian 24.04, Debian 11-13
+          HAS_GNUDATE=true
+     elif date -r 735275209 >/dev/null 2>&1; then
           # It can't do any conversion from a plain date output.
           HAS_OPENBSDDATE=true
-     else
-          HAS_GNUDATE=true
      fi
 fi
 # FreeBSD and OS X date(1) accept "-f inputformat", so do newer OpenBSD versions >~ 6.6.
@@ -1443,6 +1447,7 @@ fileout() {
 
 
 json_header() {
+     local fname_date="$1"
      local fname_prefix
      local filename_provided=false
 
@@ -1471,9 +1476,9 @@ json_header() {
           fname_prefix="${FNAME_PREFIX}${NODE}_p${PORT}"
      fi
      if [[ -z "$JSONFILE" ]]; then
-          JSONFILE="$fname_prefix-$(date +"%Y%m%d-%H%M".json)"
+          JSONFILE="$fname_prefix-${fname_date}.json"
      elif [[ -d "$JSONFILE" ]]; then
-          JSONFILE="$JSONFILE/${fname_prefix}-$(date +"%Y%m%d-%H%M".json)"
+          JSONFILE="$JSONFILE/${fname_prefix}-${fname_date}.json"
      fi
      # Silently reset APPEND var if the file doesn't exist as otherwise it won't be created
      if "$APPEND" && [[ ! -s "$JSONFILE" ]]; then
@@ -1494,6 +1499,7 @@ json_header() {
 
 
 csv_header() {
+     local fname_date="$1"
      local fname_prefix
      local filename_provided=false
 
@@ -1519,9 +1525,9 @@ csv_header() {
           fname_prefix="${FNAME_PREFIX}${NODE}_p${PORT}"
      fi
      if [[ -z "$CSVFILE" ]]; then
-          CSVFILE="${fname_prefix}-$(date +"%Y%m%d-%H%M".csv)"
+          CSVFILE="${fname_prefix}-${fname_date}.csv"
      elif [[ -d "$CSVFILE" ]]; then
-          CSVFILE="$CSVFILE/${fname_prefix}-$(date +"%Y%m%d-%H%M".csv)"
+          CSVFILE="$CSVFILE/${fname_prefix}-${fname_date}.csv"
      fi
      # Silently reset APPEND var if the file doesn't exist as otherwise it won't be created
      if "$APPEND" && [[ ! -s "$CSVFILE" ]]; then
@@ -1548,6 +1554,7 @@ csv_header() {
 ################# END JSON file functions. START HTML functions ####################
 
 html_header() {
+     local fname_date="$1"
      local fname_prefix
      local filename_provided=false
 
@@ -1576,9 +1583,9 @@ html_header() {
           fname_prefix="${FNAME_PREFIX}${NODE}_p${PORT}"
      fi
      if [[ -z "$HTMLFILE" ]]; then
-          HTMLFILE="$fname_prefix-$(date +"%Y%m%d-%H%M".html)"
+          HTMLFILE="$fname_prefix-${fname_date}.html"
      elif [[ -d "$HTMLFILE" ]]; then
-          HTMLFILE="$HTMLFILE/$fname_prefix-$(date +"%Y%m%d-%H%M".html)"
+          HTMLFILE="$HTMLFILE/$fname_prefix-${fname_date}.html"
      fi
      # Silently reset APPEND var if the file doesn't exist as otherwise it won't be created
      if "$APPEND" && [[ ! -s "$HTMLFILE" ]]; then
@@ -1626,8 +1633,9 @@ html_footer() {
 ################# END HTML file functions ####################
 
 prepare_logging() {
-     # arg1: for testing mx records name we put a name of logfile in here, otherwise we get strange file names
-     local fname_prefix="$1"
+     local fname_date="$1"
+     # arg2: for testing mx records name we put a name of logfile in here, otherwise we get strange file names
+     local fname_prefix="$2"
      local filename_provided=false
 
      if [[ -n "$PARENT_LOGFILE" ]]; then
@@ -1644,10 +1652,10 @@ prepare_logging() {
      [[ -z "$fname_prefix" ]] && fname_prefix="${FNAME_PREFIX}${NODE}_p${PORT}"
 
      if [[ -z "$LOGFILE" ]]; then
-          LOGFILE="$fname_prefix-$(date +"%Y%m%d-%H%M".log)"
+          LOGFILE="$fname_prefix-${fname_date}.log"
      elif [[ -d "$LOGFILE" ]]; then
           # actually we were instructed to place all files in a DIR instead of the current working dir
-          LOGFILE="$LOGFILE/$fname_prefix-$(date +"%Y%m%d-%H%M".log)"
+          LOGFILE="$LOGFILE/$fname_prefix-${fname_date}.log"
      else
           : # just for clarity: a log file was specified, no need to do anything else
      fi
@@ -2030,9 +2038,9 @@ check_revocation_crl() {
           fi
      fi
      if grep -qe '-----BEGIN CERTIFICATE-----' $TEMPDIR/intermediatecerts.pem; then
-          $OPENSSL verify -crl_check -CAfile <(cat $ADDTL_CA_FILES "$GOOD_CA_BUNDLE" "${tmpfile%%.crl}.pem") -untrusted $TEMPDIR/intermediatecerts.pem $HOSTCERT &> "${tmpfile%%.crl}.err"
+          $OPENSSL verify -crl_check -CAfile <(cat ${ADDTL_CA_FILES//,/ } "$GOOD_CA_BUNDLE" "${tmpfile%%.crl}.pem") -untrusted $TEMPDIR/intermediatecerts.pem $HOSTCERT &> "${tmpfile%%.crl}.err"
      else
-          $OPENSSL verify -crl_check -CAfile <(cat $ADDTL_CA_FILES "$GOOD_CA_BUNDLE" "${tmpfile%%.crl}.pem") $HOSTCERT &> "${tmpfile%%.crl}.err"
+          $OPENSSL verify -crl_check -CAfile <(cat ${ADDTL_CA_FILES//,/ } "$GOOD_CA_BUNDLE" "${tmpfile%%.crl}.pem") $HOSTCERT &> "${tmpfile%%.crl}.err"
      fi
      if [[ $? -eq 0 ]]; then
           out ", "
@@ -2090,14 +2098,14 @@ check_revocation_ocsp() {
                # Response appears to use SHA-1 in CertID
                $OPENSSL ocsp -no_nonce -respin "$TEMPDIR/stapled_ocsp_response.dd" \
                     -issuer $TEMPDIR/hostcert_issuer.pem -verify_other $TEMPDIR/intermediatecerts.pem \
-                    -CAfile <(cat $ADDTL_CA_FILES "$GOOD_CA_BUNDLE") -cert $HOSTCERT -text &> "$tmpfile"
+                    -CAfile <(cat ${ADDTL_CA_FILES//,/ } "$GOOD_CA_BUNDLE") -cert $HOSTCERT -text &> "$tmpfile"
                success=$?
           fi
           if [[ $success -ne 0 ]] && [[ "$stapled_response" =~ 0609608648016503040201 ]]; then
                # Response appears to use SHA-256 in CertID
                $OPENSSL ocsp -sha256 -no_nonce -respin "$TEMPDIR/stapled_ocsp_response.dd" \
                     -issuer $TEMPDIR/hostcert_issuer.pem -verify_other $TEMPDIR/intermediatecerts.pem \
-                    -CAfile <(cat $ADDTL_CA_FILES "$GOOD_CA_BUNDLE") -cert $HOSTCERT -text &> "$tmpfile"
+                    -CAfile <(cat ${ADDTL_CA_FILES//,/ } "$GOOD_CA_BUNDLE") -cert $HOSTCERT -text &> "$tmpfile"
                success=$?
           fi
      else
@@ -2128,7 +2136,7 @@ check_revocation_ocsp() {
           fi
           $openssl_bin ocsp -no_nonce ${host_header} -url "$uri" \
                -issuer $TEMPDIR/hostcert_issuer.pem -verify_other $TEMPDIR/intermediatecerts.pem \
-               -CAfile <(cat $ADDTL_CA_FILES "$GOOD_CA_BUNDLE") -cert $HOSTCERT -text &> "$tmpfile"
+               -CAfile <(cat ${ADDTL_CA_FILES//,/ } "$GOOD_CA_BUNDLE") -cert $HOSTCERT -text &> "$tmpfile"
           success=$?
      fi
 
@@ -2435,6 +2443,8 @@ service_detection() {
                wait_kill $! $HEADER_MAXSLEEP
                was_killed=$?
           fi
+          # make sure that we don't have non-printable chars sneaked in -- relevant only in debug mode level 2
+          sanitze_http_header $TMPFILE
           head $TMPFILE | grep -aq '^HTTP/' && SERVICE=HTTP
           [[ -z "$SERVICE" ]] && head $TMPFILE | grep -Ewaq "SMTP|ESMTP|Exim|IdeaSmtpServer|Kerio Connect|Postfix" && SERVICE=SMTP  # I know some overlap here
           [[ -z "$SERVICE" ]] && head $TMPFILE | grep -Ewaq "POP|POP3|Gpop|OK Dovecot" && SERVICE=POP                               # I know some overlap here
@@ -2509,14 +2519,17 @@ connectivity_problem() {
      fi
 }
 
+# arg1: filename (global)
+# return: sanitzes arg1. output only when debugging
+#
 sanitze_http_header() {
      # sed implementations tested were sometime not fine with header containing x0d x0a (CRLF) which is the usual
      # case. Also we use tr here to remove any crtl chars which the server side offers --> possible security problem
      # Only allowed now is LF + CR. See #2337. awk, see above, doesn't seem to care -- but not under MacOS.
-     sed -e '/^$/q' -e '/^[^a-zA-Z_0-9]$/q' $HEADERFILE | tr -d '\000-\011\013\014\016-\037' >$HEADERFILE.tmp
+     sed -e '/^$/q' -e '/^[^a-zA-Z_0-9]$/q' $1 | tr -d '\000-\011\013\014\016-\037' >$1.tmp
      # Now to be more sure we delete from '<' or '{' maybe with a leading blank until the end
-     sed -e '/^ *<.*$/d' -e '/^ *{.*$/d' $HEADERFILE.tmp >$HEADERFILE
-     debugme echo -e "---\n $(< $HEADERFILE) \n---"
+     sed -e '/^ *<.*$/d' -e '/^ *{.*$/d' $1.tmp >$1
+     debugme echo -e "---\n $(< $1) \n---"
 }
 
 
@@ -2550,9 +2563,9 @@ run_http_header() {
           tm_out "$GET_REQ11" | $OPENSSL s_client $(s_client_options "$OPTIMAL_PROTO $BUGS -quiet -ign_eof -connect $NODEIP:$PORT $PROXY $SNI") >$HEADERFILE 2>$ERRFILE
           NOW_TIME=$(date "+%s")
           HAD_SLEPT=0
-          sanitze_http_header
+          sanitze_http_header $HEADERFILE
      else
-          sanitze_http_header
+          sanitze_http_header $HEADERFILE
           # 1st GET request hung and needed to be killed. Check whether it succeeded anyway:
           if grep -Eiaq "XML|HTML|DOCTYPE|HTTP|Connection" $HEADERFILE; then
                # correct by seconds we slept, HAD_SLEPT comes from wait_kill()
@@ -2565,6 +2578,7 @@ run_http_header() {
                ((NR_HEADER_FAIL++))
           fi
      fi
+
      HTTP_TIME=$(awk -F': ' '/^date:/ { print $2 }  /^Date:/ { print $2 }' $HEADERFILE)
      HTTP_AGE=$(awk -F': ' '/^[aA][gG][eE]: / { print $2 }' $HEADERFILE)
      if [[ ! -s $HEADERFILE ]]; then
@@ -2592,6 +2606,10 @@ run_http_header() {
      # Populate vars for HTTP time
      [[ -n "$HTTP_AGE" ]] && HTTP_AGE="$(strip_lf "$HTTP_AGE")"
      [[ -n "$HTTP_TIME" ]] && HTTP_TIME="$(strip_lf "$HTTP_TIME")"
+     if [[ -n "$HTTP_AGE" ]] && [[ ! "$HTTP_AGE" =~ ^[0-9]+$ ]];  then
+          HTTP_AGE="NaN"
+     fi
+
      debugme echo "NOW_TIME: $NOW_TIME | HTTP_AGE: $HTTP_AGE | HTTP_TIME: $HTTP_TIME"
 
      HTTP_STATUS_CODE=$(awk '/^HTTP\// { print $2 }' $HEADERFILE 2>>$ERRFILE)
@@ -2722,13 +2740,20 @@ run_http_date() {
                outln
                pr_bold " HTTP Age"
                out " (RFC 7234)          $HTTP_AGE"
-               fileout "HTTP_headerAge" "INFO" "$HTTP_AGE seconds"
+               if [[ "$HTTP_AGE" = NaN ]]; then
+                    out ", "
+                    # https://www.rfc-editor.org/rfc/rfc7234#section-1.2.1
+                    pr_svrty_low "RFC 7234, sec 1.2.1. requires numbers"
+                    fileout "HTTP_headerAge" "LOW" "$HTTP_AGE was not a non-negative integer, see RFC 7234, sec 1.2.1."
+               else
+                    fileout "HTTP_headerAge" "INFO" "$HTTP_AGE seconds"
+               fi
           fi
      else
           out "Got no HTTP time, maybe try different URL?";
           fileout "$jsonID" "INFO" "Got no HTTP time, maybe try different URL?"
      fi
-     debugme tm_out ", HTTP_TIME + HTTP_AGE in epoch: $HTTP_TIME / $HTTP_AGE"
+     debugme tm_out ", HTTP_TIME | HTTP_AGE: $HTTP_TIME | $HTTP_AGE"
      outln
      match_ipv4_httpheader "$1"
      return 0
@@ -4399,6 +4424,7 @@ run_allciphers() {
 # test for all ciphers per protocol locally configured (w/o distinguishing whether they are good or bad)
 # for the specified protocol, test for all ciphers locally configured (w/o distinguishing whether they
 # are good or bad) and list them in order to encryption strength.
+#
 ciphers_by_strength() {
      local proto="$1" proto_hex="$2" proto_text="$3"
      local using_sockets="$4" wide="$5" serverpref_known="$6"
@@ -4824,7 +4850,7 @@ run_cipher_per_proto() {
      while read proto proto_hex proto_text; do
           pr_underline "$(printf -- "%b" "$proto_text")"
           ciphers_by_strength "$proto" "$proto_hex" "$proto_text" "$using_sockets" "true" "false"
-     done <<< "$(tm_out " -ssl2 22 SSLv2\n -ssl3 00 SSLv3\n -tls1 01 TLS 1\n -tls1_1 02 TLS 1.1\n -tls1_2 03 TLS 1.2\n -tls1_3 04 TLS 1.3")"
+     done <<< "$(tm_out " -ssl2 22 SSLv2\n -ssl3 00 SSLv3\n -tls1 01 TLSv1\n -tls1_1 02 TLSv1.1\n -tls1_2 03 TLSv1.2\n -tls1_3 04 TLSv1.3")"
      return 0
 #FIXME: no error condition
 }
@@ -4843,6 +4869,7 @@ run_cipher_per_proto() {
 # then either:
 #  1) replace it with one corresponding to $SNI; or
 #  2) remove it, if $SNI is empty
+#
 modify_clienthello() {
      local tls_handshake_ascii="$1"
      local new_key_share="$2" cookie="$3"
@@ -7171,7 +7198,7 @@ run_server_preference() {
      if "$TLS13_ONLY" && ! "$has_tls13_cipher_order"; then
           terminal_msg="no (TLS 1.3 only)"
           limitedsense=" (limited sense as client will pick)"
-          fileout_msg="not a cipher order for TLS 1.3 configured"
+          fileout_msg="not a server cipher order for TLS 1.3 configured"
      elif ! "$TLS13_ONLY" && [[ -z "$cipher2" ]]; then
           pr_warning "unable to determine"
      elif ! "$has_cipher_order" && ! "$has_tls13_cipher_order"; then
@@ -7179,7 +7206,7 @@ run_server_preference() {
           terminal_msg="no (NOT ok)"
           [[ "$fileout_rating" == INFO ]] && terminal_msg="no"
           limitedsense=" (limited sense as client will pick)"
-          fileout_msg="NOT a cipher order configured"
+          fileout_msg="NOT a server cipher order configured"
      elif "$has_cipher_order" && ! "$has_tls13_cipher_order" && [[ "$default_proto" == TLSv1.3 ]]; then
           if [[ $NO_CIPHER_ORDER_LEVEL -eq 5 ]]; then
                pr_svrty_good "yes (OK)"; out " -- only for < TLS 1.3"
@@ -7254,6 +7281,7 @@ run_server_preference() {
 }
 
 # arg1: true if the list that is returned does not need to be ordered by preference.
+#
 check_tls12_pref() {
      local unordered_list_ok="$1"
      local chacha20_ciphers="" non_chacha20_ciphers=""
@@ -7349,6 +7377,7 @@ check_tls12_pref() {
 }
 
 # At the moment only called from run_server_preference()
+#
 cipher_pref_check() {
      local proto="$1" proto_hex="$2" proto_text="$3"
      local using_sockets="$4"
@@ -7793,9 +7822,9 @@ determine_trust() {
           # in a subshell because that should be valid here only
           (export SSL_CERT_DIR="/dev/null"; export SSL_CERT_FILE="/dev/null"
           if [[ $certificates_provided -ge 2 ]]; then
-               $OPENSSL verify $TRUSTED1ST -purpose sslserver -CAfile <(cat $ADDTL_CA_FILES "$bundle_fname") -untrusted $TEMPDIR/intermediatecerts.pem $HOSTCERT >$TEMPDIR/${certificate_file[i]}.1 2>$TEMPDIR/${certificate_file[i]}.2
+               $OPENSSL verify $TRUSTED1ST -purpose sslserver -CAfile <(cat ${ADDTL_CA_FILES//,/ } "$bundle_fname") -untrusted $TEMPDIR/intermediatecerts.pem $HOSTCERT >$TEMPDIR/${certificate_file[i]}.1 2>$TEMPDIR/${certificate_file[i]}.2
           else
-               $OPENSSL verify $TRUSTED1ST -purpose sslserver -CAfile <(cat $ADDTL_CA_FILES "$bundle_fname") $HOSTCERT >$TEMPDIR/${certificate_file[i]}.1 2>$TEMPDIR/${certificate_file[i]}.2
+               $OPENSSL verify $TRUSTED1ST -purpose sslserver -CAfile <(cat ${ADDTL_CA_FILES//,/ } "$bundle_fname") $HOSTCERT >$TEMPDIR/${certificate_file[i]}.1 2>$TEMPDIR/${certificate_file[i]}.2
           fi)
           verify_retcode[i]=$(awk '/error [1-9][0-9]? at [0-9]+ depth lookup:/ { if (!found) {print $2; found=1} }' $TEMPDIR/${certificate_file[i]}.1 $TEMPDIR/${certificate_file[i]}.2)
           [[ -z "${verify_retcode[i]}" ]] && verify_retcode[i]=0
@@ -10127,7 +10156,7 @@ certificate_info() {
                out "$indent"; pr_bold " Intermediate cert validity   "
                first=false
           else
-               out "$indent$spaces"
+               out "$spaces"
           fi
           out "#${i}: "
           if ! [[ "$($OPENSSL x509 -checkend 1 2>>$ERRFILE <<< "$cert")" =~ \ not\  ]]; then
@@ -19591,8 +19620,8 @@ run_lucky13() {
      fi
      if [[ $sclient_success -eq 0 ]]; then
           out "potentially "
-          pr_svrty_low "VULNERABLE"; out ", uses cipher block chaining (CBC) ciphers with TLS. Check patches"
-          fileout "$jsonID" "LOW" "potentially vulnerable, uses TLS CBC ciphers" "$cve" "$cwe" "$hint"
+          pr_svrty_low "VULNERABLE"; out ", uses obsolete cipher block chaining ciphers with TLS, see server prefs."
+          fileout "$jsonID" "LOW" "potentially vulnerable, uses obsolete TLS CBC ciphers" "$cve" "$cwe" "$hint"
           # the CBC padding which led to timing differences during MAC processing has been solved in openssl (https://www.openssl.org/news/secadv/20130205.txt)
           # and other software. However we can't tell with reasonable effort from the outside. Thus we still issue a warning and label it experimental
      else
@@ -23098,6 +23127,7 @@ draw_line() {
 
 
 run_mx_all_ips() {
+     local fname_date="$1"
      local mxs mx
      local mxport
      local -i ret=0
@@ -23105,18 +23135,18 @@ run_mx_all_ips() {
 
      STARTTLS_PROTOCOL="smtp"
      # test first higher priority servers
-     mxs=$(get_mx_record "$1" | sort -n | sed -e 's/^.* //' -e 's/\.$//' | tr '\n' ' ')
+     mxs=$(get_mx_record "$2" | sort -n | sed -e 's/^.* //' -e 's/\.$//' | tr '\n' ' ')
      if [[ $CMDLINE_IP == one ]]; then
           word="as instructed one"                               # with highest priority
           mxs=${mxs%% *}
      else
           word="the only"
      fi
-     mxport=${2:-25}
+     mxport=${3:-25}
      if [[ -n "$LOGFILE" ]] || [[ -n "$PARENT_LOGFILE" ]]; then
-          prepare_logging
+          prepare_logging "${fname_date}"
      else
-          prepare_logging "${FNAME_PREFIX}mx-$1"
+          prepare_logging "${fname_date}" "${FNAME_PREFIX}mx-$1"
      fi
      if [[ -n "$mxs" ]] && [[ "$mxs" != ' ' ]]; then
           [[ $(count_words "$mxs") -gt 1 ]] && MULTIPLE_CHECKS=true
@@ -24730,10 +24760,8 @@ parse_cmd_line() {
      fi
      if [[ -d "${ADDTL_CA_FILES}" ]]; then
           ADDTL_CA_FILES="$ADDTL_CA_FILES/*.pem"
-     else
-          ADDTL_CA_FILES="${ADDTL_CA_FILES//,/ }"
      fi
-     for fname in ${ADDTL_CA_FILES}; do
+     for fname in ${ADDTL_CA_FILES//,/ }; do
           [[ -s "$fname" ]] || fatal_cmd_line "The CA file \"$fname\" does not exist" $ERR_RESOURCE
           grep -q 'BEGIN CERTIFICATE' "$fname" || fatal_cmd_line "\"$fname\" is not CA file in PEM format" $ERR_RESOURCE
      done
@@ -24990,22 +25018,23 @@ lets_roll() {
 ################# main #################
 
 
-     RET=0     # this is a global as we can have a function main(), see #705. Should we toss then all local $ret?
-     ip=""
+     RET=0                                   # this is a global as a function main() is problematic, see #705. Should we toss then all local $ret?
      stopwatch start
+     FNAME_DATE="$(date +"%Y%m%d-%H%M")"     # a global var, and a definition via local doesn't work here. Omitting definition above
+     IP=""                                   # see previous line, global used only here
 
      lets_roll init
      initialize_globals
-     check_base_requirements            # needs to come after $do_html is defined
+     check_base_requirements                 # needs to come after $do_html is defined
      parse_cmd_line "$@"
      # CMDLINE_PARSED has been set now. Don't put a function immediately after this which calls fatal().
      # Rather put it after csv_header below.
      # html_header() needs to be called early! Otherwise if html_out() is called before html_header() and the
      # command line contains --htmlfile <htmlfile> or --html, it'll make problems with html output, see #692.
      # json_header and csv_header could be called later but for context reasons we'll leave it here
-     html_header
-     json_header
-     csv_header
+     html_header "${FNAME_DATE}"
+     json_header "${FNAME_DATE}"
+     csv_header "${FNAME_DATE}"
      get_install_dir
      # see #705, we need to source TLS_DATA_FILE here instead of in get_install_dir(), see #705
      [[ -r "$TLS_DATA_FILE" ]] && . "$TLS_DATA_FILE"
@@ -25030,7 +25059,7 @@ lets_roll() {
      fileout_banner
 
      if "$do_mass_testing"; then
-          prepare_logging
+          prepare_logging "${FNAME_DATE}"
           if [[ "$MASS_TESTING_MODE" == parallel ]]; then
                run_mass_testing_parallel
           else
@@ -25043,13 +25072,13 @@ lets_roll() {
      #TODO: there shouldn't be the need for a special case for --mx, only the ip addresses we would need upfront and the do-parser
      if "$do_mx_all_ips"; then
           #FIXME: do we need this really here?
-          count_do_variables                           # if we have just 1x "do_*" --> we do a standard run -- otherwise just the one specified
+          count_do_variables                                # if we have just 1x "do_*" --> we do a standard run -- otherwise just the one specified
           [[ $? -eq 1 ]] && set_scanning_defaults
-          run_mx_all_ips "${URI}" $PORT                # we should reduce run_mx_all_ips to what's necessary as below we have similar code
+          run_mx_all_ips "${FNAME_DATE}" "${URI}" $PORT     # we should reduce run_mx_all_ips to what's necessary as below we have similar code
           exit $?
      fi
 
-     [[ -z "$NODE" ]] && parse_hn_port "${URI}"        # NODE, URL_PATH, PORT, IPADDRs and IP46ADDR is set now
+     [[ -z "$NODE" ]] && parse_hn_port "${URI}"             # NODE, URL_PATH, PORT, IPADDRs and IP46ADDR is set now
      prepare_logging
 
      if [[ -n "$PROXY" ]] && $DNS_VIA_PROXY; then
@@ -25066,10 +25095,10 @@ lets_roll() {
                     pr_bold "Testing all IPv4 addresses (port $PORT): "
                fi
                outln "$IPADDRs"
-               for ip in $IPADDRs; do
+               for IP in $IPADDRs; do
                     draw_line "-" $((TERM_WIDTH * 2 / 3))
                     outln
-                    NODEIP="$ip"
+                    NODEIP="$IP"
                     lets_roll "${STARTTLS_PROTOCOL}"
                     RET=$((RET + $?))                       # RET value per IP address
                done
