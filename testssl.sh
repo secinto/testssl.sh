@@ -9093,7 +9093,7 @@ determine_dates_certificate() {
           diffseconds=$(( d + ((m*30)) + ((y*365)) ))
           diffseconds=$((diffseconds * secsaday))
           # Now we estimate the days left plus length of month/year:
-          yearnow="$(date -juz GMT "+%Y-%m-%d %H:%M")"
+          yearnow="$(TZ=GMT date -u "+%Y-%m-%d %H:%M")"
           y=$(( ${yearend:0:4} - ${yearnow:0:4} ))
           m=$(( ${yearend:5:1} - ${yearnow:5:1} + ${yearend:6:1} - ${yearnow:6:1} ))
           d=$(( ${yearend:8:2} - ${yearnow:8:2} ))
