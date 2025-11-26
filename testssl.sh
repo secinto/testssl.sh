@@ -232,7 +232,7 @@ else
 fi
 DISPLAY_CIPHERNAMES="openssl"           # display OpenSSL ciphername (but both OpenSSL and RFC ciphernames in wide mode)
 declare UA_STD="TLS tester from $SWURL"
-declare -r UA_SNEAKY="Mozilla/5.0 (X11; Linux x86_64; rv:94.0) Gecko/20100101 Firefox/94.0"
+declare -r UA_SNEAKY="Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:144.0) Gecko/20100101 Firefox/144.0"
 SSL_RENEG_ATTEMPTS=${SSL_RENEG_ATTEMPTS:-10}       # number of times to check SSL Renegotiation
 SSL_RENEG_WAIT=${SSL_RENEG_WAIT:-0.25}   # time between SSL Renegotiation checks
 
@@ -468,11 +468,12 @@ declare TLS13_OSSL_CIPHERS="TLS_AES_128_GCM_SHA256:TLS_AES_256_GCM_SHA384:TLS_CH
 HAS_GNUDATE=false
 HAS_FREEBSDDATE=false
 HAS_OPENBSDDATE=false
+
 if date -d @735275209 >/dev/null 2>&1; then
      if date -r @735275209 >/dev/null 2>&1; then
           # Ubuntu >= 25.10
           HAS_GNUDATE=true
-     elif date -r 735275209 2>&1 | grep -q "No such file"; then
+     elif LC_ALL=C date -r 735275209 2>&1 | grep -q "No such file"; then
           # e.g. Debian 24.04, Debian 11-13
           HAS_GNUDATE=true
      elif date -r 735275209 >/dev/null 2>&1; then
@@ -483,6 +484,7 @@ fi
 # FreeBSD and OS X date(1) accept "-f inputformat", so do newer OpenBSD versions >~ 6.6.
 date -j -f '%s' 1234567 >/dev/null 2>&1 && \
      HAS_FREEBSDDATE=true
+
 
 echo A | sed -E 's/A//' >/dev/null 2>&1 && \
      declare -r HAS_SED_E=true || \
@@ -21884,24 +21886,27 @@ filter_ip4_address() {
 
 # For security testing sometimes we have local entries. Getent is BS under Linux for localhost: No network, no resolution
 # arg1 is the entry we want to look up in the host file
+#
 get_local_aaaa() {
      local ip6=""
      local etchosts="/etc/hosts /c/Windows/System32/drivers/etc/hosts"
 
      [[ -z "$1" ]] && echo "" && return 1
-     # Also multiple records should work fine
-     ip6=$(grep -wih "$1" $etchosts 2>/dev/null | grep ':' | grep -Ev '^#|\.local' | grep -Ei "[[:space:]]$1" | awk '{ print $1 }')
+     # grep: find hostname with trailing lf or space. -w doesn't work here
+     ip6=$(grep -Eih "[[:space:]]$1([[:space:]]|$)" $etchosts 2>/dev/null | grep ':' | grep -Ev '^#|\.local' | awk '{ print $1 }')
      if is_ipv6addr "$ip6"; then
           echo "$ip6"
      else
           echo ""
      fi
 }
+
 get_local_a() {
      local ip4=""
      local etchosts="/etc/hosts /c/Windows/System32/drivers/etc/hosts"
 
-     ip4=$(grep -wih "$1" $etchosts 2>/dev/null | grep -Ev ':|^#|\.local' | grep -Ei "[[:space:]]$1" | awk '{ print $1 }')
+     # grep: find hostname with trailing lf or space. -w doesn't work here
+     ip4=$(grep -Eih "[[:space:]]$1([[:space:]]|$)" $etchosts 2>/dev/null | grep -Ev ':|^#|\.local' | awk '{ print $1 }')
      if is_ipv4addr "$ip4"; then
           echo "$ip4"
      else
